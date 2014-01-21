@@ -1,6 +1,15 @@
 Inchworm
 ====================
 
+Inchworm is a web code quality tool for analyzing both HTML and Javascript.
+
+Instead of running the code analysis as part of the build cycle or manually Inchworm displays found code issues right
+ on the web page (or in the console, or wherever!). This
+
+It is a wrapper around [JSHint](https://github.com/jshint/jshint/raw/2.x/dist/jshint.js) and
+[HTMLHint](https://raw.github.com/yaniswang/HTMLHint/master/lib/htmlhint.js) together with an engine that
+downloads all included scripts on the page and passes these to JSHint.
+
 Quick start
 ------------
 
@@ -9,7 +18,11 @@ Quick start
     <script src="inchworm.js" data-suppress-analysis></script>
     <script>
         var options = {
-            jshint: { undef: true, expr: true, asi: true, globals: { jQuery: false, $: false } },
+            jshint: {
+                undef: true, // complain about variables that not defined
+                asi: true, // don't complain about missing semicolons
+                globals: { jQuery: false, $: false } // jQuery is an acceptable global variable
+            },
             htmlhint: undefined, // use default rule set
             ignoreEmbeddedScripts: true,
             excludePattern: /jshint|htmlhint|inchworm|google/
@@ -34,11 +47,20 @@ Runs a full analysis of current page and included script files.
 See JSHint [documentation](http://www.jshint.com/docs/options/) and HTMLHint [documentation](https://github.com/yaniswang/HTMLHint/wiki/Usage)
 
     {
-        jshint: <jshint options>,
+        jshint: { <jshint options>, globals: { <allowed global variables> } },
         htmlhint: <htmlhint rule config>,
         ignoreEmbeddedScripts: <true if html-embedded javascript should be ignored>,
         excludePattern: <regex that matches js file paths that should be excluded>
     };
+
+`jshint` the JSHint config object, see the [documentation](http://www.jshint.com/docs/options/)
+
+`htmlhint` the HTMLHint rules object, see the [documentation](https://github.com/yaniswang/HTMLHint/wiki/Usage)
+
+`ignoreEmbeddedScripts`: true if javascript inside html-documents shouldn't be analyzed.
+
+`excludePattern`: a list of your 3rd party libraries in a regular expression,
+usually on the form: `/external|jQuery|bootstrap|/`
 
 ### parameter `callback`
 
