@@ -1,0 +1,60 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Inchworm specifications</title>
+  <link rel="shortcut icon" type="image/png" href="lib/jasmine-2.0.0/jasmine_favicon.png">
+  <link rel="stylesheet" type="text/css" href="lib/jasmine-2.0.0/jasmine.css">
+
+  <script src="lib/jasmine-2.0.0/jasmine.js" data-suppress-analysis></script>
+  <script src="lib/jasmine-2.0.0/jasmine-html.js" data-suppress-analysis></script>
+  <script src="lib/jasmine-2.0.0/boot.js" data-suppress-analysis></script>
+
+  <script src="jshint.js" data-suppress-analysis></script>
+  <script src="htmlhint.js" data-suppress-analysis></script>
+  <script src="inchworm.js" data-suppress-analysis></script>
+  <script src="inchworm.spec.js" data-suppress-analysis></script>
+  <script src="test-data-script.js"></script>
+</head>
+
+<body>
+  <div style="color: blue"></div>
+  <div style="color: blue" data-suppress-analysis></div>
+  <div style="color: blue"><!-- suppress-analysis --></div>
+  <div style="color: blue" class="suppress-analysis"></div>
+  <!--<div></div>-->
+  <!--<div></div> suppress-analysis -->
+  <!--<div></div>--><!-- suppress-analysis -->
+
+  <script data-suppress-analysis>
+
+    if (false) console.log('') // missing semicolon here at line #3
+    inchworm.analyze(null, inchworm.toConsole);
+  </script>
+  <script>
+
+
+    if (false) console.log('') // missing semicolon here at line #4
+
+    describe('This page', function() {
+        it('should have some violations', function(done){
+            inchworm.analyze({ excludePattern: /jshint|htmlhint|inchworm|jasmine/ }, function(violations){
+                var reasonsAtLine = {};
+                for(var i=0; i<violations.length; i++){
+                    reasonsAtLine[violations[i].line] = violations[i].reason;
+                }
+                expect(reasonsAtLine).toEqual({
+                    2: 'Missing semicolon.',
+                    // no violation at line 3 
+                    4: 'Missing semicolon.', // from this embedded script
+                    21: 'Inline style not allowed.',
+                    25: 'Comments must not contain HTML code'
+                });
+                done();
+            });
+        });
+    });
+
+  </script>
+</body>
+</html>

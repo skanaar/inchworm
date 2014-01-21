@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>example skanaar.codeanalysis</title>
+  <script src="htmlhint.js" data-suppress-analysis></script>
+  <script src="jshint.js" data-suppress-analysis></script>
+  <script src="inchworm.js" data-suppress-analysis></script>
+  <script src="test-data-script.js"></script>
+</head>
+
+<body>
+  <div style="color: blue"></div>
+  <div style="color: blue" data-suppress-analysis></div>
+  <div style="color: blue"><!-- suppress-analysis --></div>
+  <div style="color: blue" class="suppress-analysis"></div>
+  <!--<div></div>-->
+  <!--<div></div> suppress-analysis -->
+  <!--<div></div>--><!-- suppress-analysis -->
+
+  <DIV></DIV>
+  <div id="4711"></div>
+  <div id="4711"></div>
+  <div class=xyz></div>
+  <div>a>b<c</div>
+  <div></span>
+  <div ID="apa"></span>
+  <script src=""></script>
+
+  <script>
+    var x = {}
+  </script>
+
+  <script>
+    var options = {
+        jshint: {
+            globals: { jQuery: true, $: true }
+        }
+    }
+    inchworm.analyze(options, inchworm.toPage);
+  </script>
+</body>
+</html>
