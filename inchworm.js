@@ -207,6 +207,39 @@ inchworm.strict = {
         'doctype-html5': false,
         'id-class-value': false,
         'style-disabled': true
+    },
+    csslint: {
+        'adjoining-classes': false,
+        'box-model': false,
+        'box-sizing': false,
+        'bulletproof-font-face': false,
+        'compatible-vendor-prefixes': true,
+        'display-property-grouping': true,
+        'duplicate-background-images': true,
+        'duplicate-properties': true,
+        'empty-rules': true,
+        'fallback-colors': false,
+        'floats': false,
+        'font-faces': false,
+        'font-sizes': false,
+        'gradients': true,
+        'ids': false,
+        'import': true,
+        'important': true,
+        'known-properties': true,
+        'outline-none': true,
+        'overqualified-elements': false,
+        'qualified-headings': false,
+        'regex-selectors': false,
+        'shorthand': true,
+        'star-property-hack': true,
+        'text-indent': true,
+        'underscore-property-hack': true,
+        'unique-headings': false,
+        'universal-selector': false,
+        'unqualified-attributes': false,
+        'vendor-prefix': true,
+        'zero-units': true
     }
 };
 
@@ -230,7 +263,7 @@ inchworm.strict = {
         function nullJshint(){}
         nullJshint.errors = [];
 
-        var nullHTMLHint = {
+        var nullVerifyer = {
             verify: function (){ return [] }
         }
 
@@ -238,9 +271,11 @@ inchworm.strict = {
         return {
             ajax: o.ajax || xhrAjax,
             JSHINT: o.JSHINT || globals.JSHINT || nullJshint,
-            HTMLHint: o.HTMLHint || globals.HTMLHint || nullHTMLHint,
+            HTMLHint: o.HTMLHint || globals.HTMLHint || nullVerifyer,
+            CSSLint: o.CSSLint || globals.CSSLint || nullVerifyer,
             htmlhint: o.htmlhint || undefined,
             jshint: o.jshint || {},
+            csslint: o.csslint || inchworm.strict.csslint,
             ignoreEmbeddedScripts: o.ignoreEmbeddedScripts,
             excludePattern: o.excludePattern
         }
@@ -270,15 +305,26 @@ inchworm.strict = {
         return element.getAttribute('data-suppress-analysis') === null;
     }
 
+    function shouldAnalyze(options, element, src){
+        var notExcluded = !(src && options.excludePattern && src.match(options.excludePattern));
+        return src && notExcluded && elementUnsuppressed(element);
+    }
+
     function includedScriptPaths(options){
         var scripts = globals.document.getElementsByTagName('script');
-        var c = _.collect(scripts, function (element){
+        return _.collect(scripts, function (element){
             var src = element.getAttribute('src');
-            var notSuppressed = elementUnsuppressed(element);
-            var notExcluded = !(src && options.excludePattern && src.match(options.excludePattern));
-            return (notExcluded && notSuppressed && src) ? src : undefined;
+            return shouldAnalyze(options, element, src) ? src : undefined;
         })
-        return c
+    }
+
+    function includedCssPaths(options){
+        var scripts = globals.document.getElementsByTagName('link');
+        return _.collect(scripts, function (element){
+            var src = element.getAttribute('href');
+            var isStylesheet = element.getAttribute('rel') === 'stylesheet';
+            return (isStylesheet && shouldAnalyze(options, element, src)) ? src : undefined;
+        })
     }
 
     function collectJsHintErrors(jsSource, filepath, options){
@@ -290,6 +336,22 @@ inchworm.strict = {
                 file: filename,
                 line: e.line,
                 reason: e.reason,
+                evidence: e.evidence && e.evidence.trim(),
+                details: e
+            }
+        })
+    }
+
+    function collectCssLintErrors(source, filepath, options){
+        var filename = filepath.split('?')[0].split('/').pop();
+        if (!source) { return [] }
+        var result = options.CSSLint.verify(source, options.csslint);
+        return _.collect(result.messages, function (e){
+            if (e === null){ return undefined }
+            return {
+                file: filename,
+                line: e.line,
+                reason: e.message,
                 evidence: e.evidence && e.evidence.trim(),
                 details: e
             }
@@ -310,6 +372,20 @@ inchworm.strict = {
         });
     }
 
+    function cssViolations(options, callback){
+        var filepaths = includedCssPaths(options);
+        var violationGenerators = _.map(filepaths, function (filepath){
+            return function (pass){
+                options.ajax(filepath, function (source){
+                    pass(filepath, collectCssLintErrors(source, filepath, options))
+                })
+            }
+        });
+        _.when.apply(null, violationGenerators).then(function (result){
+            callback('css', _.flatten(result.items))
+        });
+    }
+
     function embeddedJsViolations(options, callback){
         var scriptElements = globals.document.getElementsByTagName('script');
         var scripts = options.ignoreEmbeddedScripts ? [] : scriptElements;
@@ -326,7 +402,8 @@ inchworm.strict = {
         _.when(
             function (pass){ jsViolations(options, pass) },
             function (pass){ embeddedJsViolations(options, pass) },
-            function (pass){ htmlHintViolations(options, pass) }
+            function (pass){ htmlHintViolations(options, pass) },
+            function (pass){ cssViolations(options, pass) }
         )
         .then(function (violations){
             var reporter = callback || toConsole;

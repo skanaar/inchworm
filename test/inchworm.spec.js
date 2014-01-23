@@ -2,9 +2,11 @@ describe('inchworm', function() {
 
     var HTML = '';
     var JS = 'test-data-script.js';
+    var CSS = 'test-data-style.css';
     var ajaxResources = {};
     ajaxResources[HTML] = '';
     ajaxResources[JS] = 'console.log(4711);';
+    ajaxResources[CSS] = '.classy { color: #fff }';
 
     function ajax(url, callback){
         callback(ajaxResources[url]);
@@ -14,6 +16,7 @@ describe('inchworm', function() {
         ajax: ajax,
         jshint: {},
         htmlhint: {'no-inline-style':  true, 'no-commented-code':  true}, 
+        csslint: {},
         ignoreEmbeddedScripts: true
     };
 
@@ -153,6 +156,7 @@ describe('inchworm', function() {
             ajaxResources[JS] = 'function foo(){ if(true) null }';
             var options = {
                 ajax: ajax,
+                csslint: {},
                 jshint: { expr: true, asi: true },
                 htmlhint: {}
             };
@@ -200,22 +204,20 @@ describe('inchworm', function() {
                 done();
             };
             mockJSHINT.errors = [];
-            var mockHTMLHint = {
-                verify: function (){ return [] }
-            };
             var options = {
                 ajax: ajax,
                 ignoreEmbeddedScripts: true,
                 jshint: jshintOptions,
                 JSHINT: mockJSHINT,
-                HTMLHint: mockHTMLHint
+                CSSLint: { verify: function (){ return { messages: [] } } },
+                HTMLHint: { verify: function (){ return [] } }
             };
             inchworm.analyze(options, function (){})
         });
 
         it('should pass htmlhint options object to HTMLHint', function(done){
             ajaxResources[HTML] = 'xyz';
-            htmlhintConfig = {};
+            var htmlhintConfig = {};
             var mockJSHINT = function (){};
             mockJSHINT.errors = [];
             var mockHTMLHint = {
@@ -230,7 +232,31 @@ describe('inchworm', function() {
                 ajax: ajax,
                 htmlhint: htmlhintConfig,
                 JSHINT: mockJSHINT,
+                CSSLint: { verify: function (){ return { messages: [] } } },
                 HTMLHint: mockHTMLHint
+            };
+            inchworm.analyze(options, function (){})
+        });
+
+        it('should pass csslint options object to CSSLint', function(done){
+            ajaxResources[CSS] = 'some css';
+            var csslintConfig = {};
+            var mockJSHINT = function (){};
+            mockJSHINT.errors = [];
+            var mockCSSLint = {
+                verify: function (source, rules){
+                    expect(source).toEqual('some css');
+                    expect(rules).toBe(csslintConfig);
+                    done();
+                    return { messages: [] }
+                }
+            };
+            var options = {
+                ajax: ajax,
+                csslint: csslintConfig,
+                JSHINT: mockJSHINT,
+                CSSLint: mockCSSLint,
+                HTMLHint: { verify: function (){ return [] } }
             };
             inchworm.analyze(options, function (){})
         })

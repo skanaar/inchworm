@@ -4,14 +4,14 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <title>Inchworm specifications</title>
   <link rel="shortcut icon" type="image/png" href="lib/jasmine-2.0.0/jasmine_favicon.png">
-  <link rel="stylesheet" type="text/css" href="lib/jasmine-2.0.0/jasmine.css">
-
+  <link rel="stylesheet" type="text/css" href="lib/jasmine-2.0.0/jasmine.css" data-suppress-analysis>
+  <link rel="stylesheet" type="text/css" href="test-data-style.css">
   <script src="lib/jasmine-2.0.0/jasmine.js" data-suppress-analysis></script>
   <script src="lib/jasmine-2.0.0/jasmine-html.js" data-suppress-analysis></script>
   <script src="lib/jasmine-2.0.0/boot.js" data-suppress-analysis></script>
-
   <script src="../jshint.js" data-suppress-analysis></script>
   <script src="../htmlhint.js" data-suppress-analysis></script>
+  <script src="../csslint.js" data-suppress-analysis></script>
   <script src="../inchworm.js" data-suppress-analysis></script>
   <script src="inchworm.spec.js" data-suppress-analysis></script>
   <script src="test-data-script.js"></script>
@@ -45,7 +45,7 @@
                 }
                 expect(reasonsAtLine).toEqual({
                     2: 'Missing semicolon.',
-                    // no violation at line 3 
+                    3 : "Values of 0 shouldn't have units specified.",
                     4: 'Missing semicolon.', // from this embedded script
                     21: 'Inline style not allowed.',
                     25: 'Comments must not contain HTML code'

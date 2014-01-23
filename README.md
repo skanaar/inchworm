@@ -6,15 +6,16 @@ Inchworm is a web code quality tool for analyzing both HTML and Javascript.
 Instead of running the code analysis as part of the build cycle or manually Inchworm displays found code issues right
  on the web page (or in the console, or wherever!). This
 
-It is a wrapper around [JSHint](https://github.com/jshint/jshint/raw/2.x/dist/jshint.js) and
-[HTMLHint](https://raw.github.com/yaniswang/HTMLHint/master/lib/htmlhint.js) together with an engine that
-downloads all included scripts on the page and passes these to JSHint.
+It is a wrapper around [JSHint](https://github.com/jshint/jshint/raw/2.x/dist/jshint.js),
+[HTMLHint](https://raw.github.com/yaniswang/HTMLHint/master/lib/htmlhint.js) and [CSSLint](https://github.com/stubbornella/csslint) together with an engine that
+downloads and analyzes all included scripts and stylesheets.
 
 Quick start
 ------------
 
     <script src="jshint.js" data-suppress-analysis></script>
     <script src="htmlhint.js" data-suppress-analysis></script>
+    <script src="csslint.js" data-suppress-analysis></script>
     <script src="inchworm.js" data-suppress-analysis></script>
     <script>
         var options = {
@@ -23,7 +24,8 @@ Quick start
                 asi: true, // don't complain about missing semicolons
                 globals: { jQuery: false, $: false } // jQuery is an acceptable global variable
             },
-            htmlhint: undefined, // use default rule set
+            htmlhint: undefined, // use default rule set,
+            csslint: undefined, // use default rule set
             ignoreEmbeddedScripts: true,
             excludePattern: /jshint|htmlhint|inchworm|google/
         };
@@ -34,6 +36,7 @@ Dependencies
 ------------
 *  [JSHint](https://github.com/jshint/jshint/raw/2.x/dist/jshint.js)
 *  [HTMLHint](https://raw.github.com/yaniswang/HTMLHint/master/lib/htmlhint.js)
+*  [CSSLint](https://raw2.github.com/stubbornella/csslint/master/release/csslint.js)
 
 API
 ----
@@ -44,11 +47,12 @@ Runs a full analysis of current page and included script files.
 
 ### parameter `options`
 
-See JSHint [documentation](http://www.jshint.com/docs/options/) and HTMLHint [documentation](https://github.com/yaniswang/HTMLHint/wiki/Usage)
+See JSHint [documentation](http://www.jshint.com/docs/options/), HTMLHint [documentation](https://github.com/yaniswang/HTMLHint/wiki/Usage) and CSSLint [documentation](https://github.com/stubbornella/csslint/wiki/Rules).
 
     {
         jshint: { <jshint options>, globals: { <allowed global variables> } },
         htmlhint: <htmlhint rule config>,
+        csslint: <csslint rule config>,
         ignoreEmbeddedScripts: <true if html-embedded javascript should be ignored>,
         excludePattern: <regex that matches js file paths that should be excluded>
     };
@@ -56,6 +60,8 @@ See JSHint [documentation](http://www.jshint.com/docs/options/) and HTMLHint [do
 `jshint` the JSHint config object, see the [documentation](http://www.jshint.com/docs/options/)
 
 `htmlhint` the HTMLHint rules object, see the [documentation](https://github.com/yaniswang/HTMLHint/wiki/Usage)
+
+`csslint` the CSSLint rules object, see the [documentation](https://github.com/stubbornella/csslint/wiki/Rules)
 
 `ignoreEmbeddedScripts`: true if javascript inside html-documents shouldn't be analyzed.
 
