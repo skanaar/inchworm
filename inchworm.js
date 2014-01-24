@@ -24,6 +24,16 @@ var inchworm = inchworm || {};
         return out
     }
 
+    function keys(obj) {
+        var out = [];
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)){
+                out.push(obj[key])
+            }
+        }
+        return out
+    }
+
     function filter(obj, predicate) {
         var out = [];
         for (var i = 0, n = obj.length; i < n; i++) {
@@ -35,15 +45,21 @@ var inchworm = inchworm || {};
     }
 
     function map(obj, func) {
-        var out = [];
-        for (var i = 0, n = obj.length; i < n; i++) {
-            out.push(func(obj[i], i))
+        var out = (Object.prototype.toString.call(obj) === '[object Array]') ? [] : {};
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)){
+                out[key] = func(obj[key], key)
+            }
         }
         return out
     }
 
     function collect(obj, func) {
-        return filter(map(obj, func), function(x){ return x !== undefined; })
+        return filter(map(obj, func), function(x){ return x !== undefined })
+    }
+
+    function compact(obj) {
+        return filter(obj, function(x){ return !!x })
     }
 
     var when = function(){
@@ -52,12 +68,12 @@ var inchworm = inchworm || {};
         var self = this; //cached so the syntax of code within the function is more readable
         self.pending = Array.prototype.slice.call(arguments[0]); //convert arguments passed in to array
         self.pending_length = self.pending.length; //cache length of the arguments array
-        self.results = {length:0, items:[]}; //container for results of async functions
+        self.results = {length:0, items:[], obj:{}}; //container for results of async functions
         (function(){ // define pass() within this context so that the outer scope of self(this) is available when pass() is executed within the user's async functions
             self.pass = function(){
                 //self.results.push(arguments); //push async results to cache array
-                self.results[arguments[0]] = arguments[1];
                 self.results.items.push(arguments[1]);
+                self.results.obj[arguments[0]] = arguments[1];
                 self.results.length++;
                 if( self.results.length === self.pending_length ){ //if all async functions have finished, pass the results to .then(), which has been redefined to the user's completion function
                     self.then.call(self, self.results);
@@ -82,7 +98,9 @@ var inchworm = inchworm || {};
         each: each,
         flatten: flatten,
         collect: collect,
+        keys: keys,
         filter: filter,
+        compact: compact,
         map: map,
         when: when
     }
@@ -245,6 +263,21 @@ inchworm.strict = {
 
 (function (globals) {
     var _ = inchworm._;
+    var $ = function (query){
+        if (query === 'script'){
+            return globals.document.getElementsByTagName('script');
+        }
+        if (query === 'script[src]'){
+            var scripts = globals.document.getElementsByTagName('script');
+            return _.filter(scripts, function (el){ return !!el.getAttribute('src')})
+        }
+        if (query === 'link[href][rel=stylesheet]'){
+            return _.filter(globals.document.getElementsByTagName('link'), function (el){
+                return (!!el.getAttribute('href')) && (el.getAttribute('rel') === 'stylesheet');
+            })
+        }
+        return []
+    }
 
     function fullyDefinedOptions(globals, options){
 
@@ -281,19 +314,49 @@ inchworm.strict = {
         }
     }
 
+    function ViolationFactory(filepath, messageKey){
+        var filename = filepath.split('?')[0].split('/').pop();
+        return function (v){
+            return {
+                file: filename,
+                line: v.line,
+                reason: v[messageKey],
+                evidence: v.evidence && v.evidence.trim(),
+                details: v
+            }
+        }
+    }
+
+    function elementUnsuppressed(element){
+        return element.getAttribute('data-suppress-analysis') === null;
+    }
+
+    function analyzableAttr(query, attr, excludePattern){
+        function notExcluded(x){
+            return !(x && excludePattern && x.match(excludePattern))
+        }
+        function pluckAttr(elements, attr){
+            return _.map(elements, function (e){ return e.getAttribute(attr) })
+        }
+        return _.filter(pluckAttr(_.filter($(query), elementUnsuppressed), attr), notExcluded)
+    }
+
+    function collectJsHintErrors(jsSource, options, Violation){
+        options.JSHINT(jsSource, options.jshint, options.jshint.globals);
+        return _.collect(_.compact(options.JSHINT.errors), Violation)
+    }
+
+    function collectCssLintErrors(source, options, Violation){
+        if (!source) { return [] }
+        var result = options.CSSLint.verify(source, options.csslint);
+        return _.collect(_.compact(result.messages), Violation)
+    }
+
     function htmlHintViolations(options, callback){
+        var Violation = ViolationFactory('html', 'message')
         options.ajax('', function(htmlSource){
             var htmlHintViolations = options.HTMLHint.verify(htmlSource, options.htmlhint);
-            var violations = _.map(htmlHintViolations, function (v){
-                return {
-                    file: 'html',
-                    line: v.line,
-                    reason: v.message,
-                    evidence: v.evidence.trim(),
-                    details: v
-                }
-            });
-
+            var violations = _.map(htmlHintViolations, Violation);
             var lines = htmlSource.split("\n");
             var suppressed = 'suppress-analysis';
             function isNotSuppressed(v){ return !lines[v.line-1].match(suppressed) }
@@ -301,83 +364,44 @@ inchworm.strict = {
         })
     }
 
-    function elementUnsuppressed(element){
-        return element.getAttribute('data-suppress-analysis') === null;
-    }
-
-    function shouldAnalyze(options, element, src){
-        var notExcluded = !(src && options.excludePattern && src.match(options.excludePattern));
-        return src && notExcluded && elementUnsuppressed(element);
-    }
-
-    function includedScriptPaths(options){
-        var scripts = globals.document.getElementsByTagName('script');
-        return _.collect(scripts, function (element){
-            var src = element.getAttribute('src');
-            return shouldAnalyze(options, element, src) ? src : undefined;
-        })
-    }
-
-    function includedCssPaths(options){
-        var scripts = globals.document.getElementsByTagName('link');
-        return _.collect(scripts, function (element){
-            var src = element.getAttribute('href');
-            var isStylesheet = element.getAttribute('rel') === 'stylesheet';
-            return (isStylesheet && shouldAnalyze(options, element, src)) ? src : undefined;
-        })
-    }
-
-    function collectJsHintErrors(jsSource, filepath, options){
-        var filename = filepath.split('?')[0].split('/').pop();
-        options.JSHINT(jsSource, options.jshint, options.jshint.globals);
-        return _.collect(options.JSHINT.errors, function (e){
-            if (e === null){ return undefined }
-            return {
-                file: filename,
-                line: e.line,
-                reason: e.reason,
-                evidence: e.evidence && e.evidence.trim(),
-                details: e
-            }
-        })
-    }
-
-    function collectCssLintErrors(source, filepath, options){
-        var filename = filepath.split('?')[0].split('/').pop();
-        if (!source) { return [] }
-        var result = options.CSSLint.verify(source, options.csslint);
-        return _.collect(result.messages, function (e){
-            if (e === null){ return undefined }
-            return {
-                file: filename,
-                line: e.line,
-                reason: e.message,
-                evidence: e.evidence && e.evidence.trim(),
-                details: e
-            }
-        })
-    }
-
-    function jsViolations(options, callback){
-        var filepaths = includedScriptPaths(options);
-        var violationGenerators = _.map(filepaths, function (filepath){
+    function multiAjax(ajax, urls, callback){
+        var generators = _.map(urls, function (filepath){
             return function (pass){
-                options.ajax(filepath, function (jsSource){
-                    pass(filepath, collectJsHintErrors(jsSource, filepath, options))
+                ajax(filepath, function (source){
+                    pass(filepath, source)
                 })
             }
         });
-        _.when.apply(null, violationGenerators).then(function (result){
-            callback('js', _.flatten(result.items))
-        });
+        _.when.apply(null, generators).then(function (result){ callback(result.obj) });
+    }
+
+    function jsViolations(options, callback){
+        var filepaths = analyzableAttr('script[src]', 'src', options.excludePattern);
+        multiAjax(options.ajax, filepaths, function (sources){
+            function source2violations(jsSource, filepath){
+                var vioFactory = ViolationFactory(filepath, 'reason');
+                return collectJsHintErrors(jsSource, options, vioFactory)
+            }
+            callback('js', _.flatten(_.keys(_.map(sources, source2violations))))
+        })
+    }
+
+    function embeddedJsViolations(options, callback){
+        function isEmbedded(el){ return elementUnsuppressed(el) && !el.getAttribute('src') }
+        var scripts = options.ignoreEmbeddedScripts ? [] : _.filter($('script'), isEmbedded);
+        callback('embedded', _.flatten(_.collect(scripts, function (elem, i){
+                var vioFactory = ViolationFactory('(embedded-js-'+i+')', 'reason');
+                return collectJsHintErrors(elem.text, options, vioFactory)
+        })));
     }
 
     function cssViolations(options, callback){
-        var filepaths = includedCssPaths(options);
+        var filepaths = analyzableAttr('link[href][rel=stylesheet]', 'href', options.excludePattern);
         var violationGenerators = _.map(filepaths, function (filepath){
             return function (pass){
                 options.ajax(filepath, function (source){
-                    pass(filepath, collectCssLintErrors(source, filepath, options))
+                    var vioFactory = ViolationFactory(filepath, 'message');
+                    pass(filepath, collectCssLintErrors(source, options, vioFactory))
                 })
             }
         });
@@ -386,23 +410,12 @@ inchworm.strict = {
         });
     }
 
-    function embeddedJsViolations(options, callback){
-        var scriptElements = globals.document.getElementsByTagName('script');
-        var scripts = options.ignoreEmbeddedScripts ? [] : scriptElements;
-        callback('embedded', _.flatten(_.collect(scripts, function (elem, i){
-            if (elementUnsuppressed(elem) && !elem.getAttribute('src')){
-                return collectJsHintErrors(elem.text, '(embedded-js-'+i+')', options)
-            }
-            return []
-        })));
-    }
-
     function analyze(inputOptions, callback){
         var options = fullyDefinedOptions(globals, inputOptions);
         _.when(
+            function (pass){ htmlHintViolations(options, pass) },
             function (pass){ jsViolations(options, pass) },
             function (pass){ embeddedJsViolations(options, pass) },
-            function (pass){ htmlHintViolations(options, pass) },
             function (pass){ cssViolations(options, pass) }
         )
         .then(function (violations){
@@ -447,7 +460,7 @@ inchworm.strict = {
         div.style['top'] = 0;
         div.style['left'] = 0;
         div.style['right'] = 0;
-        div.style['width'] = '50%';
+        div.style['width'] = '70%';
         div.style['max-height'] = '100px';
         div.style['overflow'] = 'auto';
         div.style['box-shadow'] = '0px 0px 4px 0px #888';
