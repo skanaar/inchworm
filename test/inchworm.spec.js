@@ -158,6 +158,19 @@ describe('inchworm', function() {
                 ajax: ajax,
                 csslint: {},
                 jshint: { expr: true, asi: true },
+                ignoreEmbeddedScripts: true, 
+                htmlhint: {}
+            };
+            assertViolations(done, [], options);
+        });
+
+        it('should not report embedded non js script', function(done){
+            ajaxResources[JS] = '';
+            var options = {
+                ajax: ajax,
+                csslint: {},
+                jshint: { expr: true, asi: true },
+                ignoreEmbeddedScripts: false, 
                 htmlhint: {}
             };
             assertViolations(done, [], options);

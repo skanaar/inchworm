@@ -24,7 +24,7 @@ var inchworm = inchworm || {};
         return out
     }
 
-    function keys(obj) {
+    function values(obj) {
         var out = [];
         for (var key in obj) {
             if (obj.hasOwnProperty(key)){
@@ -98,7 +98,7 @@ var inchworm = inchworm || {};
         each: each,
         flatten: flatten,
         collect: collect,
-        keys: keys,
+        values: values,
         filter: filter,
         compact: compact,
         map: map,
@@ -173,7 +173,7 @@ inchworm.strict = {
         maxlen: false,
         maxstatements: false,
         maxparams: false,
-        maxcomplexity: 9,
+        maxcomplexity: 12,
         maxerr: false,
 
         // relaxing
@@ -314,17 +314,15 @@ inchworm.strict = {
         }
     }
 
-    function ViolationFactory(filepath, messageKey){
-        var filename = filepath.split('?')[0].split('/').pop();
-        return function (v){
-            return {
-                file: filename,
-                line: v.line,
-                reason: v[messageKey],
-                evidence: v.evidence && v.evidence.trim(),
-                details: v
+    function multiAjax(ajax, urls, callback){
+        var generators = _.map(urls, function (filepath){
+            return function (pass){
+                ajax(filepath, function (source){
+                    pass(filepath, source)
+                })
             }
-        }
+        });
+        _.when.apply(null, generators).then(function (result){ callback(result.obj) });
     }
 
     function elementUnsuppressed(element){
@@ -343,13 +341,26 @@ inchworm.strict = {
 
     function collectJsHintErrors(jsSource, options, Violation){
         options.JSHINT(jsSource, options.jshint, options.jshint.globals);
-        return _.collect(_.compact(options.JSHINT.errors), Violation)
+        return _.map(_.compact(options.JSHINT.errors), Violation)
     }
 
     function collectCssLintErrors(source, options, Violation){
         if (!source) { return [] }
         var result = options.CSSLint.verify(source, options.csslint);
-        return _.collect(_.compact(result.messages), Violation)
+        return _.map(_.compact(result.messages), Violation)
+    }
+
+    function ViolationFactory(filepath, messageKey){
+        var filename = filepath.split('?')[0].split('/').pop();
+        return function (v){
+            return {
+                file: filename,
+                line: v.line,
+                reason: v[messageKey],
+                evidence: v.evidence && v.evidence.trim(),
+                details: v
+            }
+        }
     }
 
     function htmlHintViolations(options, callback){
@@ -358,21 +369,9 @@ inchworm.strict = {
             var htmlHintViolations = options.HTMLHint.verify(htmlSource, options.htmlhint);
             var violations = _.map(htmlHintViolations, Violation);
             var lines = htmlSource.split("\n");
-            var suppressed = 'suppress-analysis';
-            function isNotSuppressed(v){ return !lines[v.line-1].match(suppressed) }
+            function isNotSuppressed(v){ return !lines[v.line-1].match('suppress-analysis') }
             callback('html', _.filter(violations, isNotSuppressed))
         })
-    }
-
-    function multiAjax(ajax, urls, callback){
-        var generators = _.map(urls, function (filepath){
-            return function (pass){
-                ajax(filepath, function (source){
-                    pass(filepath, source)
-                })
-            }
-        });
-        _.when.apply(null, generators).then(function (result){ callback(result.obj) });
     }
 
     function jsViolations(options, callback){
@@ -382,32 +381,33 @@ inchworm.strict = {
                 var vioFactory = ViolationFactory(filepath, 'reason');
                 return collectJsHintErrors(jsSource, options, vioFactory)
             }
-            callback('js', _.flatten(_.keys(_.map(sources, source2violations))))
+            callback('js', _.flatten(_.values(_.map(sources, source2violations))))
         })
     }
 
     function embeddedJsViolations(options, callback){
-        function isEmbedded(el){ return elementUnsuppressed(el) && !el.getAttribute('src') }
-        var scripts = options.ignoreEmbeddedScripts ? [] : _.filter($('script'), isEmbedded);
-        callback('embedded', _.flatten(_.collect(scripts, function (elem, i){
-                var vioFactory = ViolationFactory('(embedded-js-'+i+')', 'reason');
-                return collectJsHintErrors(elem.text, options, vioFactory)
-        })));
+        function isAnalyzable(el){
+            var type = el.getAttribute('type');
+            var isJs = (type === null) || type.match(/javascript/);
+            return isJs && elementUnsuppressed(el) && !el.getAttribute('src') && !options.ignoreEmbeddedScripts
+        }
+        var scripts = _.filter($('script'), isAnalyzable);
+        function script2violations(elem, i){
+            var vioFactory = ViolationFactory('(embedded-js-'+i+')', 'reason');
+            return collectJsHintErrors(elem.text, options, vioFactory)
+        }
+        callback('embedded', _.flatten(_.collect(scripts, script2violations)));
     }
 
     function cssViolations(options, callback){
         var filepaths = analyzableAttr('link[href][rel=stylesheet]', 'href', options.excludePattern);
-        var violationGenerators = _.map(filepaths, function (filepath){
-            return function (pass){
-                options.ajax(filepath, function (source){
-                    var vioFactory = ViolationFactory(filepath, 'message');
-                    pass(filepath, collectCssLintErrors(source, options, vioFactory))
-                })
+        multiAjax(options.ajax, filepaths, function (sources){
+            function source2violations(cssSource, filepath){
+                var vioFactory = ViolationFactory(filepath, 'message');
+                return cssSource ? collectCssLintErrors(cssSource, options, vioFactory) : []
             }
-        });
-        _.when.apply(null, violationGenerators).then(function (result){
-            callback('css', _.flatten(result.items))
-        });
+            callback('css', _.flatten(_.values(_.map(sources, source2violations))))
+        })
     }
 
     function analyze(inputOptions, callback){
@@ -460,7 +460,7 @@ inchworm.strict = {
         div.style['top'] = 0;
         div.style['left'] = 0;
         div.style['right'] = 0;
-        div.style['width'] = '70%';
+        div.style['width'] = '60%';
         div.style['max-height'] = '100px';
         div.style['overflow'] = 'auto';
         div.style['box-shadow'] = '0px 0px 4px 0px #888';
