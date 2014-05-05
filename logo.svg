@@ -8,6 +8,6 @@
         d="m 0,200 L 100,0 200,0 100,200 200,400 100,400 z" />
   <path style="fill:#0094FF;fill-opacity:1"
         d="m 620,200 L 520,0 420,0 520,200 420,400 520,400 z" />
-  <path style="fill:none;stroke:#00B512;stroke-width:90;stroke-linecap:round"
+  <path style="fill:none;stroke:#00B512;stroke-width:80;stroke-linecap:round"
         d="m 190,230 c 60,0 60,-100 120,-100 60,0 60,100 120,100" />
 </svg>

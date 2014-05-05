@@ -1,10 +1,9 @@
 Inchworm
 ====================
 
-Inchworm is a web code quality tool for analyzing both HTML and Javascript.
+Inchworm is a code quality tool for analyzing the three languages web applications are built in: HTML, JS and CSS.
 
-Instead of running the code analysis as part of the build cycle or manually Inchworm displays found code issues right
- on the web page (or in the console, or wherever!). This
+Instead of running an analysis as part of the build cycle Inchworm displays found code issues right on the web page (or in the console, or wherever!).
 
 It is a wrapper around [JSHint](https://github.com/jshint/jshint/raw/2.x/dist/jshint.js),
 [HTMLHint](https://raw.github.com/yaniswang/HTMLHint/master/lib/htmlhint.js) and [CSSLint](https://github.com/stubbornella/csslint) together with an engine that
