@@ -445,30 +445,30 @@ inchworm.strict = {
             div.title = v.evidence;
             var evidence = div.appendChild(d.createElement('tt'));
             evidence.appendChild(d.createTextNode('\u00A0\u00A0' + v.evidence));
-            evidence.style['color']="#888";
-            div.style['padding'] = '2px 10px 2px';
-            div.style['white-space'] = 'nowrap';
-            div.style['text-overflow'] = 'ellipsis';
-            div.style['overflow-x'] = 'hidden';
+            evidence.style.setProperty('color', "#888");
+            div.style.setProperty('padding', '2px 10px 2px');
+            div.style.setProperty('white-space', 'nowrap');
+            div.style.setProperty('text-overflow', 'ellipsis');
+            div.style.setProperty('overflow-x', 'hidden');
             return div
         }
 
         var div = d.createElement("div");
         div.id = 'inchworm-report';
-        div.style['position'] = 'absolute';
-        div.style['z-index'] = 2000;
-        div.style['top'] = 0;
-        div.style['left'] = 0;
-        div.style['right'] = 0;
-        div.style['width'] = '60%';
-        div.style['max-height'] = '100px';
-        div.style['overflow'] = 'auto';
-        div.style['box-shadow'] = '0px 0px 4px 0px #888';
-        div.style['margin'] = '0 auto';
-        div.style['font-family'] = 'Verdana, sans-serif';
-        div.style['font-size'] = '70%';
-        div.style['background'] = '#fff';
-        div.style['color'] = '#444444';
+        div.style.setProperty('position', 'absolute');
+        div.style.setProperty('z-index', 2000);
+        div.style.setProperty('top', 0);
+        div.style.setProperty('left', 0);
+        div.style.setProperty('right', 0);
+        div.style.setProperty('width', '60%');
+        div.style.setProperty('max-height', '100px');
+        div.style.setProperty('overflow', 'auto');
+        div.style.setProperty('box-shadow', '0 0 4px #888');
+        div.style.setProperty('margin', '0 auto');
+        div.style.setProperty('font-family', 'Verdana, sans-serif');
+        div.style.setProperty('font-size', '70%');
+        div.style.setProperty('background', '#fff');
+        div.style.setProperty('color', '#444444');
 
         d.body.appendChild(div);
 
